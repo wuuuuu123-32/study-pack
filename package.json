@@ -1,0 +1,25 @@
+{
+  "name": "study-pack",
+  "version": "0.1.0",
+  "description": "把「课件 + 作业题」变成可自学的学习材料三件套（讲义 / 答疑册 / 复习卡）—— dsh skill",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/wuuuuu123-32/study-pack.git"
+  },
+  "keywords": [
+    "dsh",
+    "skill",
+    "study",
+    "handout",
+    "learning"
+  ],
+  "files": [
+    "SKILL.md",
+    "README.md",
+    "references"
+  ],
+  "engines": {
+    "node": ">=18"
+  }
+}
