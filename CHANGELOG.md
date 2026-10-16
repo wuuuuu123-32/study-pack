@@ -1,5 +1,17 @@
 # 更新日志
 
+## v0.5.4 — 2026-10-17
+
+v0.5.3 刚发完就核对出两处问题，一并修掉。
+
+- **修正错误记载**：发布历史表原写「v0.4.0 及更早只有 tag，没有 Release」——实际那四个 Release
+  一直都在（正文 57–171 字符，v0.1.0–v0.4.0 各自都建过）。发文档前先查了远端才发现的。
+- **发布脚本进仓库**：新增 `scripts/make-release.mjs`。直接跑
+  `node scripts/make-release.mjs` 会自动找出「有 tag 但没有 Release」的版本并补建，
+  正文取本文件对应段落；本机没装 `gh`，脚本用 `git credential fill` 拿凭据调 API
+  （凭据只经内存，不打印、不落盘），也认 `GITHUB_TOKEN`。支持 `--dry-run` 和指定版本号。
+- 发布清单第 7 步改为直接调用该脚本。
+
 ## v0.5.3 — 2026-10-17
 
 补齐 v0.5.0–v0.5.2 **发布时漏掉的东西**——代码与 `SKILL.md` 改完了，但 README、版本号、tag、
@@ -101,8 +113,8 @@ GitHub Release 没跟上，仓库外面看不出版本之间发生了什么。
       （`git ls-remote origin main` 应等于本地 `git rev-parse HEAD`）
 - [ ] **6. 打 tag 并推**：`git tag -a vX.Y.Z -m "..."` + `git push origin vX.Y.Z`
       —— ❗**tag 不会随 `git push` 自动上去，必须显式推**
-- [ ] **7. GitHub Release**：正文取 CHANGELOG 对应段落
-      （本机没装 `gh`，用 git 凭据调 API，见下）
+- [ ] **7. GitHub Release**：跑 `node scripts/make-release.mjs`（自动补建缺 Release 的 tag，
+      正文取本文件对应段落；本机没装 `gh`，脚本用 git 凭据调 API）
 
 ### 本仓库的发布操作（Windows / 无 gh）
 
@@ -118,25 +130,27 @@ HTTP_PROXY=http://127.0.0.1:7897 HTTPS_PROXY=http://127.0.0.1:7897 git push orig
 `GIT_TERMINAL_PROMPT=0 timeout 60 git push` 先逼出真错误，再决定走直连还是代理。
 另外：公开仓库 `git ls-remote` 不需要凭据，**"ls-remote 通" ≠ "push 能通"**，别拿它判断。
 
-Release 用 git 自己存的凭据调 API（注意别把 token 打到日志里）：
+Release 交给仓库里的脚本（凭据取自 git 的 wincred，只过内存，不打印）：
 
-```javascript
-// git credential fill → POST https://api.github.com/repos/<owner>/<repo>/releases
-// { tag_name, name, body, draft: false, prerelease: false }
+```bash
+node scripts/make-release.mjs --dry-run   # 看还缺哪些版本的 Release
+node scripts/make-release.mjs             # 补建
 ```
 
 ### 发布历史
 
 | 版本 | 日期 | tag | Release |
 |---|---|---|---|
+| v0.5.4 | 2026-10-17 | ✅ | ✅ |
 | v0.5.3 | 2026-10-17 | ✅ | ✅ |
-| v0.5.2 | 2026-10-17 | ✅ | ✅ |
-| v0.5.1 | 2026-10-17 | ✅ | ✅ |
-| v0.5.0 | 2026-10-17 | ✅ | ✅ |
-| v0.4.0 | 2026-10-16 | ✅ | 无 |
-| v0.3.0 | 2026-10-15 | ✅ | 无 |
-| v0.2.0 | 2026-10-15 | ✅ | 无 |
-| v0.1.0 | 2026-10-15 | ✅ | 无 |
+| v0.5.2 | 2026-10-17 | ✅ | ✅（补建） |
+| v0.5.1 | 2026-10-17 | ✅ | ✅（补建） |
+| v0.5.0 | 2026-10-17 | ✅ | ✅（补建） |
+| v0.4.0 | 2026-10-16 | ✅ | ✅ |
+| v0.3.0 | 2026-10-15 | ✅ | ✅ |
+| v0.2.0 | 2026-10-15 | ✅ | ✅ |
+| v0.1.0 | 2026-10-15 | ✅ | ✅ |
 
-> v0.5.x 的 tag 与 Release 是在 v0.5.3 时**补建**的（前三次发布漏了）；
-> v0.4.0 及更早只有 tag，没有 Release。
+> v0.5.0–v0.5.2 的 **tag 和 Release 都是 v0.5.3 时才补建的**——那三次发布只提交了代码，
+> 没打 tag、也没建 Release，仓库上完全看不出它们发生过什么。
+> v0.1.0–v0.4.0 当时就建了 Release，只是正文较短（57–171 字符）。

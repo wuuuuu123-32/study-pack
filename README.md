@@ -4,7 +4,7 @@
 
 听课件的速度跟不上、作业又催得紧时，最常见的做法是直接看答案——然后看不懂，因为缺最基础的那层概念。这个 skill 把整件事固化成一条流水线，产出三份互不污染的文件。
 
-当前版本 **v0.5.3**，历次改动见 [CHANGELOG.md](CHANGELOG.md)。
+当前版本 **v0.5.4**，历次改动见 [CHANGELOG.md](CHANGELOG.md)（含每次发版要逐条过的**发布清单**）。
 
 ## 流程：文件 → 学习 → 答疑 → 成册
 
@@ -187,6 +187,7 @@ HTML 是"源"，PDF 是方便打印和带走的副本，两份版式一致。
 | references/wording-rules.md | 措辞禁令、新名词与新物理量的解释要求 |
 | references/figure-rules.md | 加图判据（通用内核 + 学科清单现场生成） |
 | scripts/check_html_math.py | 门禁脚本：检查/修复讲义 HTML 数学区裸的 `<` `>` `&`（返回码 0 才算过） |
+| scripts/make-release.mjs | 发版用：给「有 tag 但没有 Release」的版本自动补建 GitHub Release（本机没装 `gh`） |
 
 ## 适用范围与边界
 
