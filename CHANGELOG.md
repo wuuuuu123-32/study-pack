@@ -1,5 +1,20 @@
 # 更新日志
 
+## v0.5.3 — 2026-10-17
+
+补齐 v0.5.0–v0.5.2 **发布时漏掉的东西**——代码与 `SKILL.md` 改完了，但 README、版本号、tag、
+GitHub Release 没跟上，仓库外面看不出版本之间发生了什么。
+
+- `README.md` 新增 **「运行前提：权限模式」** 一节：写清 A 路为什么需要 `danger-full-access`、
+  受限时的确切报错、两种模式的对照表，以及「它是整场会话的固定值，所以开工前就问」。
+- `README.md` **「安装」一节改写**：原文是"把本目录放进 skills 目录"，正是复制坑的源头。
+  现在明确要求 **链接（Windows 用 Junction，免管理员权限）**，附核对命令与真实事故
+  （v0.1.0 副本在 skills 目录里躺了很久，期间仓库发到 v0.4.0，而每场会话加载的都是旧版）。
+- `README.md` 设计选择补 **第 10 条**（答疑册只记真正问过的问题）与 **第 11 条**
+  （数学式禁裸尖括号——写错的话浏览器里就已经看坏了）；产物表与「第二步」强调 **HTML + PDF 都要交**。
+- `README.md` 顶部标当前版本并链到本文件；「来源」补上第 5 章的实战出处。
+- 本文件新增 **「发布清单」**：把"一次发布要动哪些地方"固化成可逐条勾的清单，防止下次又只改一部分。
+
 ## v0.5.2 — 2026-10-17
 
 补一条**防伪造**规定 —— 起因是 agent 自己犯了：本会话在用户**从未提问**的情况下创建了答疑册，
@@ -70,3 +85,58 @@
 - 加图判据采用**两层写法**（通用内核 + 学科清单现场生成），
   避免把某个学科的特例误当成通用规则。
 - 来源：大学物理热力学第 10 章习题 10（11 题）的实战提炼。
+
+## 发布清单（每次发版逐条过，别只改一部分）
+
+一次完整的发布要同时覆盖下面七项。**改完代码就 commit，不算发布**——
+本仓库 v0.5.0–v0.5.2 就是这么发出去的：README 里没有权限说明、版本号没动、
+没有 tag、GitHub 上也没有 Release，仓库外面根本看不出这几个版本之间发生了什么。
+
+- [ ] **1. 内容本体**：`SKILL.md` + `references/*.md` + `scripts/*.py`，该改的都改到
+- [ ] **2. README.md**：用户视角的说明。新增了机制（权限、导出、门禁脚本……）就必须加一节；
+      流程、产物表、设计选择条数、文件说明表都要与现状对齐
+- [ ] **3. CHANGELOG.md**：写清"改了什么 **+ 为什么改**"（起因比结论重要）
+- [ ] **4. package.json**：`version` 递增；新增目录要加进 `files`（漏了就不会被发布出去）
+- [ ] **5. 提交并推送**：`git commit` + `git push`，推送后核对远端哈希
+      （`git ls-remote origin main` 应等于本地 `git rev-parse HEAD`）
+- [ ] **6. 打 tag 并推**：`git tag -a vX.Y.Z -m "..."` + `git push origin vX.Y.Z`
+      —— ❗**tag 不会随 `git push` 自动上去，必须显式推**
+- [ ] **7. GitHub Release**：正文取 CHANGELOG 对应段落
+      （本机没装 `gh`，用 git 凭据调 API，见下）
+
+### 本仓库的发布操作（Windows / 无 gh）
+
+```bash
+cd /d/dsh/config/study-pack
+git add -A && git commit -m "vX.Y.Z：<一句话>"
+HTTP_PROXY=http://127.0.0.1:7897 HTTPS_PROXY=http://127.0.0.1:7897 git push
+git tag -a vX.Y.Z -m "vX.Y.Z"
+HTTP_PROXY=http://127.0.0.1:7897 HTTPS_PROXY=http://127.0.0.1:7897 git push origin vX.Y.Z
+```
+
+⚠️ 推送可能"挂着不报错"十几分钟（直连与代理都会出现）。用
+`GIT_TERMINAL_PROMPT=0 timeout 60 git push` 先逼出真错误，再决定走直连还是代理。
+另外：公开仓库 `git ls-remote` 不需要凭据，**"ls-remote 通" ≠ "push 能通"**，别拿它判断。
+
+Release 用 git 自己存的凭据调 API（注意别把 token 打到日志里）：
+
+```javascript
+// git credential fill → POST https://api.github.com/repos/<owner>/<repo>/releases
+// { tag_name, name, body, draft: false, prerelease: false }
+```
+
+### 发布历史
+
+| 版本 | 日期 | tag | Release |
+|---|---|---|---|
+| v0.5.3 | 2026-10-17 | ✅ | ✅ |
+| v0.5.2 | 2026-10-17 | ✅ | ✅ |
+| v0.5.1 | 2026-10-17 | ✅ | ✅ |
+| v0.5.0 | 2026-10-17 | ✅ | ✅ |
+| v0.4.0 | 2026-10-16 | ✅ | 无 |
+| v0.3.0 | 2026-10-15 | ✅ | 无 |
+| v0.2.0 | 2026-10-15 | ✅ | 无 |
+| v0.1.0 | 2026-10-15 | ✅ | 无 |
+
+> v0.5.x 的 tag 与 Release 是在 v0.5.3 时**补建**的（前三次发布漏了）；
+> v0.4.0 及更早只有 tag，没有 Release。
