@@ -1,5 +1,29 @@
 # 更新日志
 
+## v0.5.0 — 2026-10-17
+
+新增 **`references/export.md`：讲义 HTML → PDF 的导出与核对规格**，把原先只有一句
+「导出后必须渲染成图核对」的空要求补成可执行流程。
+
+- **写清了前提**：浏览器无头打印依赖 DSH 权限模式。`workspace-write` / `read-only` 下
+  Chromium 的多进程 IPC 与 crashpad 被沙箱拒（`OpenProcess: 拒绝访问 (0x5)` /
+  `mojo platform_channel.cc: Check failed: 拒绝访问 (0x5)`），**启动即崩，任何参数都救不了**；
+  模型不能自己换权限模式（`dsh-ops` 写死「Model inputs never select an authority mode」），
+  只能请用户在权限选择器里切换。
+- **两条路径**：A 浏览器无头打印（首选，8 秒出片、与 HTML 版式逐像素一致、不需要 base64 内联）；
+  B pandoc + TeX Live（受限时的备用，含 `-f html+tex_math_single_backslash`、
+  `xelatex -no-pdf` + `xdvipdfmx` 两步、`unicode-math` 下 `′` 会炸、`<colgroup>` 必备等实测坑）。
+- **核对门禁**：`pdftoppm` 抽页 + `read_image` 看图；明确写上
+  **「`pdfinfo` 的页数、`pdftotext` 抽到文字都不算核对」**——本 skill 历史上就是把
+  版式全坏的 PDF 当成功交出去的。并注明 LibreOfficeKit 的 PDFium 画不了 LO / xdvipdfmx 的 PDF。
+- **新增 `scripts/check_html_math.py`**（返回码即门禁）：数学式里的裸 `<` 会被浏览器与 pandoc
+  当成标签开头，吞掉后面的 `</div>` —— 公式在浏览器里就少一截，转 PDF 时后面所有图报
+  `! LaTeX Error: Not in outer par mode.`。脚本检查并可就地转义。
+- `SKILL.md` 新增硬规则 10（PDF 必导 + 必须目视核对 + 先看权限模式）与 11（数学式禁裸尖括号）；
+  §二 ② 补上导出流程指引；§一 产物表与 §五 参考文件同步。
+- `conventions.md` §1.4 由「排版要点」改写为「**排版与导出**」（含两条硬约束），§6 交付前自查
+  增加可勾选的四条（脚本门禁、PDF 存在、看过图、与 HTML 对照）。
+
 ## v0.4.0 — 2026-10-16
 
 - 新增知识讲义模式：只有课件、没有作业题时，按知识结构组织整章讲解（详略得当 + 透彻的判据）；答疑册与复习卡两种模式通用。
