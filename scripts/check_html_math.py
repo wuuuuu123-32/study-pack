@@ -65,10 +65,46 @@ for line, at, ctx in suspicious:
     print(f"  L{line}: <<{at}>>  …{ctx}…")
 
 # ---- 数学区域内转义 ----
-math_spans = []
-for pat in (re.compile(r"\\\((.*?)\\\)", re.S), re.compile(r"\\\[(.*?)\\\]", re.S)):
-    for m in pat.finditer(html):
-        math_spans.append((m.start(1), m.end(1)))
+# 数学定界符：\(...\)、\[...\]、$...$、$$...$$（美元符号这两种是 2026-10-17 补的）
+#   为什么补：原来只认 \( \) 与 \[ \]，用 $ 写的公式里若有裸 <，上面第 53 行的全局扫描
+#   会把它报出来，但 --apply 不转义它 —— 报了却修不了，比不报更误导。
+#   美元定界要防三类误判：
+#     ① 价格 "$5 到 $6"：开定界符后不能是空白、收定界符后不能紧跟数字；
+#     ② 转义美元 \$：前导反斜杠为奇数时不算定界符；
+#     ③ 未闭合的 $$：单个 $ 前后紧邻另一个 $ 时不算定界符，避免半段错配。
+#   已知取舍：$5+x$ 这种既像价格又像公式的串会被当成公式 —— 后果只是把里面的
+#   < > & 转成实体（浏览器与 MathJax 都会还原成原字符），显示不变，所以可接受。
+_LEN_MAX = 300   # 单条公式长度上限，超过基本可断定是错配
+
+
+def _escaped(text: str, i: int) -> bool:
+    """text[i] 前面的连续反斜杠是奇数个 → 这个字符被转义了。"""
+    n = 0
+    while i - n - 1 >= 0 and text[i - n - 1] == "\\":
+        n += 1
+    return n % 2 == 1
+
+
+def _collect(matches) -> list:
+    """收数学区域，过滤转义符、超长和与已收区间重叠的候选。"""
+    spans = []
+    for m in matches:
+        if _escaped(html, m.start()):
+            continue
+        s, e = m.start(1), m.end(1)
+        if e - s > _LEN_MAX:
+            continue
+        if any(s < b and a < e for a, b in spans):
+            continue
+        spans.append((s, e))
+    return spans
+
+
+math_spans = _collect(re.compile(r"(?<!\\)\$\$(?![\s$])((?:\\.|[^$\\])+?)(?<![\s\\])\$\$", re.S).finditer(html))
+math_spans += _collect(re.compile(r"(?<![\\$])\$(?![\s$])((?:\\.|[^$\\])+?)(?<![\s\\$])\$(?!\d)", re.S).finditer(html))
+math_spans += _collect(re.compile(r"\\\((.*?)\\\)", re.S).finditer(html))
+math_spans += _collect(re.compile(r"\\\[(.*?)\\\]", re.S).finditer(html))
+math_spans.sort()
 
 ENTITY = re.compile(r"&(?:lt|gt|amp|quot|#\d+|#x[0-9a-fA-F]+);")
 

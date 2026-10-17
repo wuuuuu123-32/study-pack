@@ -170,4 +170,5 @@ study/<科目>/<章节>/
 | references/export.md | **讲义 HTML → PDF 的导出与核对**：权限模式前提、浏览器打印（首选）、pandoc+LaTeX 备用、目视核对命令、写 HTML 时的坑 |
 | references/wording-rules.md | 措辞禁令、名词与物理量的解释要求 |
 | references/figure-rules.md | 加图判据（通用内核 + 学科适配） |
-| scripts/check_html_math.py | 门禁：检查/修复讲义 HTML 数学区裸的 `<` `>` `&`（返回码 0 才算过） |
+| scripts/check_html_math.py | 门禁：检查/修复讲义 HTML 数学区裸的 `<` `>` `&`（返回码 0 才算过）。认四种定界符：`\(..\)`、`\[..\]`、`$..$`、`$$..$$` |
+| scripts/test_check_html_math.py | 上者的回归测试（10 例）：`python scripts/test_check_html_math.py`，改动识别逻辑后必须跑 |
