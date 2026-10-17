@@ -65,16 +65,25 @@ for line, at, ctx in suspicious:
     print(f"  L{line}: <<{at}>>  …{ctx}…")
 
 # ---- 数学区域内转义 ----
-# 数学定界符：\(...\)、\[...\]、$...$、$$...$$（美元符号这两种是 2026-10-17 补的）
-#   为什么补：原来只认 \( \) 与 \[ \]，用 $ 写的公式里若有裸 <，上面第 53 行的全局扫描
-#   会把它报出来，但 --apply 不转义它 —— 报了却修不了，比不报更误导。
-#   美元定界要防三类误判：
-#     ① 价格 "$5 到 $6"：开定界符后不能是空白、收定界符后不能紧跟数字；
-#     ② 转义美元 \$：前导反斜杠为奇数时不算定界符；
-#     ③ 未闭合的 $$：单个 $ 前后紧邻另一个 $ 时不算定界符，避免半段错配。
-#   已知取舍：$5+x$ 这种既像价格又像公式的串会被当成公式 —— 后果只是把里面的
-#   < > & 转成实体（浏览器与 MathJax 都会还原成原字符），显示不变，所以可接受。
-_LEN_MAX = 300   # 单条公式长度上限，超过基本可断定是错配
+# 数学定界符：\(...\)、\[...\]、$...$、$$...$$
+#   2026-10-17 补美元定界的原因：原来只认 \( \) 与 \[ \]，用 $ 写的公式里若有裸 <，
+#   上面的全局扫描会报出来，但 --apply 不转义它 —— 报了却修不了，比不报更误导。
+#   规则（尽量对齐 MathJax 的实际行为）：
+#     · 定界符前面紧邻另一个 $ 时不算（那是 $$ 的一半）；是否被反斜杠转义交给 _escaped
+#       按**奇偶**判定，所以 \\$ 算定界符、\$ 不算 —— 正则里刻意不加反斜杠后顾，
+#       否则「偶数个反斜杠」的情况会被误挡（2026-10-17 独立复审指出）。
+#     · 行内 $：开头紧跟数字的不算（价格 "$5 到 $6"）；首尾带空白的写法 MathJax 本身
+#       也不认，这里跟着不认；长度上限 _INLINE_MAX 只用于行内，防跨句错配。
+#     · 块级 $$：**不限长度、不限制空白**（display math 里常有换行与缩进，限长会静默漏检
+#       长公式，复审指出的正是这一点）。
+#   已知取舍：块级 $$ 在正文里成对出现极少，误判的代价只是把中间的 < > & 转成实体
+#   （浏览器与 MathJax 都会还原成原字符），显示不变。
+_INLINE_MAX = 300   # 行内公式长度上限，超过基本可断定是跨句错配
+
+_DOLLAR_BLOCK = re.compile(r"(?<!\$)\$\$((?:\\.|[^$\\])+?)\$\$(?!\$)", re.S)
+_DOLLAR_INLINE = re.compile(r"(?<!\$)\$(?![\d$])((?:\\.|[^$\\\n])+?)(?<![\s\\])\$(?!\d)", re.S)
+_PAREN = re.compile(r"\\\(([^\n]*?)\\\)")   # 行内公式不跨行：未闭合时不会吞掉后面一大段
+_BRACK = re.compile(r"\\\[(.*?)\\\]", re.S)
 
 
 def _escaped(text: str, i: int) -> bool:
@@ -85,14 +94,14 @@ def _escaped(text: str, i: int) -> bool:
     return n % 2 == 1
 
 
-def _collect(matches) -> list:
-    """收数学区域，过滤转义符、超长和与已收区间重叠的候选。"""
-    spans = []
+def _collect(matches, max_len=None, existing=()) -> list:
+    """收数学区域：过滤被转义的定界符、超长区间和与已收区间重叠的候选。"""
+    spans = list(existing)
     for m in matches:
         if _escaped(html, m.start()):
             continue
         s, e = m.start(1), m.end(1)
-        if e - s > _LEN_MAX:
+        if max_len is not None and e - s > max_len:
             continue
         if any(s < b and a < e for a, b in spans):
             continue
@@ -100,10 +109,12 @@ def _collect(matches) -> list:
     return spans
 
 
-math_spans = _collect(re.compile(r"(?<!\\)\$\$(?![\s$])((?:\\.|[^$\\])+?)(?<![\s\\])\$\$", re.S).finditer(html))
-math_spans += _collect(re.compile(r"(?<![\\$])\$(?![\s$])((?:\\.|[^$\\])+?)(?<![\s\\$])\$(?!\d)", re.S).finditer(html))
-math_spans += _collect(re.compile(r"\\\((.*?)\\\)", re.S).finditer(html))
-math_spans += _collect(re.compile(r"\\\[(.*?)\\\]", re.S).finditer(html))
+# 顺序有讲究：先收无歧义的 \( \) 与 \[ \]，再收美元 —— 美元一旦误配，
+# 重叠剔除会让它自己出局，绝不会把真的 \[ \] 公式顶掉。
+math_spans = _collect(_PAREN.finditer(html))
+math_spans += _collect(_BRACK.finditer(html), existing=math_spans)
+math_spans += _collect(_DOLLAR_BLOCK.finditer(html), existing=math_spans)
+math_spans += _collect(_DOLLAR_INLINE.finditer(html), _INLINE_MAX, existing=math_spans)
 math_spans.sort()
 
 ENTITY = re.compile(r"&(?:lt|gt|amp|quot|#\d+|#x[0-9a-fA-F]+);")
