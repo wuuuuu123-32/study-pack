@@ -159,7 +159,7 @@ ERROR:...crashpad_client_win.cc:144] crash server failed to launch, self-termina
 ### 第二步：等讲义，打开它学
 
 讲义落成 **HTML + PDF** 给你。**学习发生在文件里**——翻它、在上面画、打印出来都行。
-HTML 是"源"，PDF 是方便打印和带走的副本，两份版式一致。
+HTML 是"源"，PDF 是方便打印和带走的副本；完整模式下两者版式一致，受限模式下 PDF 版面会不同，但内容完整。
 
 ### 第三步：有不懂的，回到对话里问
 
@@ -200,10 +200,14 @@ HTML 是"源"，PDF 是方便打印和带走的副本，两份版式一致。
 
 **放进 DSH 的 skills 目录时，它必须是链接，不能是复制。**
 
-```bash
+```powershell
 # Windows：junction（免管理员权限）
-New-Item -ItemType Junction -Path "$env:USERPROFILE\.dsh\skills\study-pack" -Target "D:\dsh\config\study-pack"
+New-Item -ItemType Junction -Path "$env:USERPROFILE\.dsh\skills\study-pack" -Target "<你克隆到的路径>"
+```
 
+把 `<>` 里的内容换成你自己的路径。
+
+```bash
 # Linux / macOS
 ln -s /path/to/study-pack ~/.dsh/skills/study-pack
 ```
@@ -216,6 +220,11 @@ ln -s /path/to/study-pack ~/.dsh/skills/study-pack
 从未被读过，只能靠对话现场重新推。**链接则永远指向当前版本。**
 
 装完核对一次：
+
+```powershell
+Get-ChildItem "$env:USERPROFILE\.dsh\skills"   # 要看见 study-pack
+(Get-Content "$env:USERPROFILE\.dsh\skills\study-pack\package.json" | Select-String '"version"').Line
+```
 
 ```bash
 ls -la ~/.dsh/skills/                                        # 要看见 study-pack -> /path/to/study-pack
