@@ -131,6 +131,12 @@ ERROR:...crashpad_client_win.cc:144] crash server failed to launch, self-termina
 被吃掉的 `</div>` 让整块内容再也不闭合，转 PDF 时后面所有插图报 `Not in outer par mode`。
 一律写 `&lt;` `&gt;` `&amp;`，并以 `scripts/check_html_math.py` 当门禁（退出码必须为 0）。
 
+**12. 讲义在屏幕上居中窄栏，不铺满窗口。**
+1600px 宽的显示器上满宽正文一行近 100 字，眼睛跟不住。固定 `body{max-width:900px; margin:26px auto}`，
+四周浅灰底、白色卡片；打印时用 `@media print` 把宽度和内边距撤掉，交给 `@page`。
+反过来说，`max-width:100%` 等于没设宽度，`margin:0 auto` 随之失效 —— 两份习题讲义就是这么铺满整屏的。
+可复制片段见 `references/conventions.md` §1.4。
+
 ## 怎么开始
 
 ### 第一步：把材料给我

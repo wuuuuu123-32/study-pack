@@ -154,6 +154,11 @@ study/<科目>/<章节>/
 11. **HTML 数学式里不许出现裸的 `<` `>` `&`**（`Y_{A<B}` 这种）。它会让浏览器与 pandoc 把 `<B…` 当标签，
     吞掉后面的 `</div>`：公式在浏览器里就少一截，转 PDF 时后面所有图报 `Not in outer par mode`。
     一律写 `&lt;` `&gt;` `&amp;`，写完跑 `python scripts/check_html_math.py <讲义.html>`，**退出码必须为 0**。
+12. **讲义 HTML 在屏幕上必须居中窄栏，不许铺满窗口。** 用户是在 1600px 以上的显示器上读，
+    满宽正文一行将近 100 字，眼睛跟不住。固定写法：`body{max-width:900px;margin:26px auto;padding:30px 38px 64px;background:#fff}`
+    + `html{background:#eef0f3}` + `@media print{body{max-width:none;margin:0;padding:0}}`（完整可复制片段见
+    [references/conventions.md](references/conventions.md) §1.4）。❗**不许写 `max-width:100%`**——那等于没有限制，
+    `margin:0 auto` 随之失效，正文就会从左到右铺满整个显示器（2026-10-18 那次就是这么错的，被用户指出来两次）。
 
 ## 四、换科目时要做的四件事
 

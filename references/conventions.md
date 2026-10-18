@@ -91,6 +91,22 @@
 
 排版本身：
 
+- ❗**屏幕阅读用居中窄栏，打印才交回满宽。** 讲义是给人在电脑上读的，1600px 宽的屏上满宽正文一行近 100 字，
+  跟不住。抄这段，别改：
+
+  ```css
+  html { background: #eef0f3; }
+  body { max-width: 900px; margin: 26px auto; padding: 30px 38px 64px;
+         background: #fff; box-shadow: 0 0 18px rgba(0,0,0,.08); }
+  @media print {
+    html { background: #fff; }
+    body { max-width: none; margin: 0; padding: 0; box-shadow: none; background: #fff; }
+  }
+  ```
+
+  两个坑：① **不要写 `max-width: 100%`**，那等于没设宽度，`margin: 0 auto` 什么都不做，正文直接铺满整屏
+  （2026-10-18 的真实事故，用户看了两次才提）；② **`@media print` 里必须把 `max-width`/`margin`/`padding`
+  全部撤掉**，否则 PDF 会在 `@page` 的页边之外再缩进一层。改完样式后 PDF 页数应保持不变；变了就说明撞上了第 ② 个坑。
 - 表格与"提示框"设 `break-inside: avoid`，避免被跨页切断。
 - 允许长段落跨页（否则会留大片空白）。
 - 数学公式用 MathJax **本地副本**（`mathjax/tex-svg.js`），不依赖 CDN。
