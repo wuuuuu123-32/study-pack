@@ -162,10 +162,8 @@ LibreOffice 或 xdvipdfmx 生成的 PDF，一律 `{"ok":false,"code":"failed","e
 2. 表格一律给列宽（`<colgroup>`）；`colspan` 分组表头 pandoc 会算错宽度，拆成普通表头 + `<br>`。
 3. 每个 `<div class="…">` 必须闭合。
 4. pandoc 的 HTML reader **不认** `<span class="math inline">`；裸 `\(…\)` / `\[…\]` 才认（只有 B 路相关）。
-5. ❗**屏幕版式用居中窄栏**：`body{max-width:900px;margin:26px auto}` + `html{background:#eef0f3}`，
-   并在 `@media print` 里把宽度和内边距撤掉（`max-width:none;margin:0;padding:0`）。
-   写 `max-width:100%` 等于没限制，正文会铺满整个显示器 —— 2026-10-18 就是这么错的。
-   可复制片段见 [conventions.md](conventions.md) §1.4。
+5. ❗**屏幕版式用居中窄栏**，`@media print` 里再把宽度、内边距、阴影、背景全部撤掉。
+   规范与可复制 CSS 只写在 [conventions.md](conventions.md) §1.4 一处（这里是引用，不复制，免得三处不同步）。
 
 ---
 
@@ -177,3 +175,4 @@ LibreOffice 或 xdvipdfmx 生成的 PDF，一律 `{"ok":false,"code":"failed","e
 - [ ] 抽了 3–5 页渲染成 PNG，**并且真的打开看了**（公式、表格、图、分页）。
 - [ ] 与 HTML 对照过第 1 页 —— 版式一致才收工。
 - [ ] HTML 在浏览器里是**居中窄栏**（两侧有灰底），不是铺满整个窗口。
+- [ ] PDF 里没有屏幕专用的阴影/灰底，正文与表格没有越过 `@page` 页边（页数变化只说明「该看图了」，不能代替看图）。

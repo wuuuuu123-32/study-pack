@@ -96,17 +96,25 @@
 
   ```css
   html { background: #eef0f3; }
-  body { max-width: 900px; margin: 26px auto; padding: 30px 38px 64px;
-         background: #fff; box-shadow: 0 0 18px rgba(0,0,0,.08); }
+  body { box-sizing: border-box; max-width: 900px; margin: 26px auto;
+         padding: 30px 38px 64px; background: #fff;
+         box-shadow: 0 0 18px rgba(0,0,0,.08); }
   @media print {
     html { background: #fff; }
     body { max-width: none; margin: 0; padding: 0; box-shadow: none; background: #fff; }
   }
   ```
 
-  两个坑：① **不要写 `max-width: 100%`**，那等于没设宽度，`margin: 0 auto` 什么都不做，正文直接铺满整屏
-  （2026-10-18 的真实事故，用户看了两次才提）；② **`@media print` 里必须把 `max-width`/`margin`/`padding`
-  全部撤掉**，否则 PDF 会在 `@page` 的页边之外再缩进一层。改完样式后 PDF 页数应保持不变；变了就说明撞上了第 ② 个坑。
+  `box-sizing: border-box` 不是可有可无：默认 `content-box` 下 `max-width: 900px` + 左右各 38px 内边距，
+  卡片的**外宽其实是 976px**，跟「900px 窄栏」这个说法对不上，容易在下一份讲义里把数字越调越乱。
+
+  三个坑：① **不要写 `max-width: 100%`**，那等于没设宽度，`margin: 0 auto` 什么都不做，正文直接铺满整屏
+  （2026-10-18 的真实事故，用户看了两次才提）；② **`@media print` 里必须把 `max-width`/`margin`/`padding`/
+  `box-shadow`/背景全部撤掉**，否则 PDF 会在 `@page` 的页边之外再缩进一层，或把屏幕用的阴影、灰底带进纸面；
+  ③ **不要拿「PDF 页数没变」当通过判据**：页数是离散的粗粒度结果，重排了几行但没跨页，页数照样不变；
+  反过来字体或内容一变，版式没坏页数也可能变。页数只用来发现「明显崩了」，真正的核对仍是
+  `references/export.md` 里那条——抽 3–5 页渲染成 PNG 亲眼看：内容是否铺满 `@page` 内容区、有没有阴影或灰底、
+  表格与正文有没有越过页边。
 - 表格与"提示框"设 `break-inside: avoid`，避免被跨页切断。
 - 允许长段落跨页（否则会留大片空白）。
 - 数学公式用 MathJax **本地副本**（`mathjax/tex-svg.js`），不依赖 CDN。

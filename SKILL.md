@@ -155,10 +155,12 @@ study/<科目>/<章节>/
     吞掉后面的 `</div>`：公式在浏览器里就少一截，转 PDF 时后面所有图报 `Not in outer par mode`。
     一律写 `&lt;` `&gt;` `&amp;`，写完跑 `python scripts/check_html_math.py <讲义.html>`，**退出码必须为 0**。
 12. **讲义 HTML 在屏幕上必须居中窄栏，不许铺满窗口。** 用户是在 1600px 以上的显示器上读，
-    满宽正文一行将近 100 字，眼睛跟不住。固定写法：`body{max-width:900px;margin:26px auto;padding:30px 38px 64px;background:#fff}`
-    + `html{background:#eef0f3}` + `@media print{body{max-width:none;margin:0;padding:0}}`（完整可复制片段见
-    [references/conventions.md](references/conventions.md) §1.4）。❗**不许写 `max-width:100%`**——那等于没有限制，
-    `margin:0 auto` 随之失效，正文就会从左到右铺满整个显示器（2026-10-18 那次就是这么错的，被用户指出来两次）。
+    满宽正文一行将近 100 字，眼睛跟不住。固定写法：`body{box-sizing:border-box;max-width:900px;margin:26px auto;padding:30px 38px 64px;background:#fff}`
+    + `html{background:#eef0f3}` + `@media print{body{max-width:none;margin:0;padding:0;box-shadow:none;background:#fff}}`
+    （完整可复制片段见 [references/conventions.md](references/conventions.md) §1.4）。三个不许：
+    ❗不许写 `max-width:100%`——那等于没有限制，`margin:0 auto` 随之失效，正文从左到右铺满整屏（2026-10-18 就是这么错的）；
+    ❗不许省略 `box-sizing:border-box`——少了它卡片外宽是 976px 而不是 900px；
+    ❗不许拿「PDF 页数没变」当核对（页数是粗粒度信号）。真正的核对是抽 3–5 页看图，见硬规则 10。
 
 ## 四、换科目时要做的四件事
 
