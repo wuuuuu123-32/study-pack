@@ -4,7 +4,7 @@
 
 听课件的速度跟不上、作业又催得紧时，最常见的做法是直接看答案——然后看不懂，因为缺最基础的那层概念。这个 skill 把整件事固化成一条流水线，产出三份互不污染的文件。
 
-当前版本 **v0.5.5**，历次改动见 [CHANGELOG.md](CHANGELOG.md)（含每次发版要逐条过的**发布清单**）。
+当前版本 **v0.5.7**，历次改动见 [CHANGELOG.md](CHANGELOG.md)（含每次发版要逐条过的**发布清单**）。
 
 ## 流程：文件 → 学习 → 答疑 → 成册
 
@@ -81,6 +81,24 @@ ERROR:...crashpad_client_win.cc:144] crash server failed to launch, self-termina
 
 所以**开工前就会问你一句权限模式**。它是**整场会话的固定值**——等讲义写完才发现出不了片，
 用户已经白等一两个小时。权限模式只有用户能改，agent 不能自己切，也不许换工具去绕沙箱。
+
+## 开工前先清点工具
+
+**"我有什么工具"不能靠回忆。** 所以这个 skill 的第一步不是写讲义，是跑一次真实的探测——查 PATH、查 `import`、查目录——输出一张 ✓/✗ 表：
+
+```bash
+python scripts/check_tooling.py --need schemdraw,PIL
+```
+
+缺的项**只要这次任务用得上**，就会当场告诉你四件事：缺什么、影响什么、装它的命令、不装的降级方案，然后**等你决定**。
+不会自己装（安装要先问），也不会瞒着缺口默默降级交付。
+
+两类尤其值得看：
+
+- **PDF 工具链**（`pdftoppm` / `pdftotext` / `pdfinfo`）——没有它就没法目视核对，交付质量直接掉一个档次；
+- **画图工具**（`schemdraw` 画电路图、`matplotlib` 画曲线）——缺了就只能手写 SVG、手算每个引脚坐标。
+
+顺手还会查「已安装的 skill 是链接还是复制」：复制出来的那份会**永久停在被复制的那一刻**，看着却和真身一模一样。
 
 ## 设计上的几处刻意选择
 
@@ -187,7 +205,7 @@ HTML 是"源"，PDF 是方便打印和带走的副本；完整模式下两者版
 
 | 文件 | 内容 |
 |---|---|
-| SKILL.md | 入口：输入处理（有题 / 只有课件两种模式）、三件套、工作流、12 条硬规则、换科目时的四件事 |
+| SKILL.md | 入口：输入处理（有题 / 只有课件两种模式）、三件套、工作流、13 条硬规则、换科目时的四件事 |
 | references/conventions.md | 三件套的格式规格、排版与导出约束、目录与命名、交付前自查 |
 | references/export.md | **讲义 HTML → PDF 的导出与核对**：权限前提（§0）、浏览器打印（首选）、pandoc+LaTeX 备用、目视核对命令、写 HTML 时的坑 |
 | references/wording-rules.md | 措辞禁令、新名词与新物理量的解释要求 |
@@ -195,6 +213,8 @@ HTML 是"源"，PDF 是方便打印和带走的副本；完整模式下两者版
 | scripts/check_html_math.py | 门禁脚本：检查/修复讲义 HTML 数学区裸的 `<` `>` `&`（返回码 0 才算过）。认四种定界符：`\(..\)`、`\[..\]`、`$..$`、`$$..$$`；白名单含 **SVG 与 MathML 元素**，讲义里内联画的电路图不会被误报 |
 | scripts/test_check_html_math.py | 上者的回归测试（10 例，含价格、转义美元、未闭合 `$$` 不误判）：`python scripts/test_check_html_math.py` |
 | scripts/make-release.mjs | 发版用：给「有 tag 但没有 Release」的版本自动补建 GitHub Release（本机没装 `gh`） |
+| references/tooling.md | **开工前的工具清点**：为什么要探、怎么读结果、缺口的处置三步与话术、通用能力表、换科目怎么扩表 |
+| scripts/check_tooling.py | 工具清点脚本：查 PATH / `import` / 目录，输出 ✓✗ 表与安装建议；`--need a,b` 时缺项 exit 1 |
 
 ## 适用范围与边界
 
