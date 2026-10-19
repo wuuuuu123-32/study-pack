@@ -38,7 +38,7 @@ APPLY = "--apply" in sys.argv
 html = open(PATH, encoding="utf-8").read()
 
 # 允许出现的标签名白名单（其余 `<xxx` 一律可疑）
-KNOWN = {
+KNOWN_HTML = {
     "html", "head", "body", "meta", "link", "title", "style", "script",
     "p", "div", "span", "em", "strong", "code", "pre", "br", "hr", "a", "img",
     "h1", "h2", "h3", "h4", "h5", "h6",
@@ -47,7 +47,74 @@ KNOWN = {
     "figure", "figcaption", "sup", "sub", "b", "i", "u", "small", "svg", "text", "tspan",
     "main", "header", "footer", "nav", "section", "article", "aside", "template", "noscript",
 }
+
+# 绘图元素：**只有在 <svg> / <math> 子树内部**才算已知标签。
+# 为什么不直接并进上面那张表（2026-10-19 独立会审的意见）：
+#   `<path>` `<g>` 这类名字一旦全局放行，正文里一个真正的裸 `<path>` 就再也不会被报出来
+#   —— 扩白名单在修掉误报的同时，会把「正文里的裸尖括号」这条检测面一起削掉。
+#   改成按位置豁免，两边都保住：SVG 子树里放行（那本来就是标签），子树外照报。
+KNOWN_GRAPHIC = {
+    # ── SVG 绘图元素 ─────────────────────────────────────────────
+    # 本 skill 要求「承载空间/结构/拓扑关系的内容必须配图」，讲义里手写内联 SVG
+    # （电路图、卡诺图区块）很常见。不认这些名字，门禁会在**正常**讲义上误报上百处、
+    # 退出码 1，反而让「退出码必须为 0」这条硬规则失效。
+    # 2026-10-17 实测：一份含 8 张内联 SVG 的讲义被误报 128 处，而数学区真正的裸尖括号是 0 处。
+    "g", "path", "rect", "circle", "ellipse", "line", "polyline", "polygon",
+    "defs", "use", "symbol", "marker", "pattern", "clippath", "mask", "image",
+    "lineargradient", "radialgradient", "stop", "filter", "fegaussianblur",
+    "feoffset", "femerge", "femergenode", "feblend", "fecolormatrix",
+    "foreignobject", "animate", "animatetransform", "switch", "desc",
+    # ── MathML（MathJax 行内输出会用）────────────────────────────
+    "math", "mrow", "mi", "mo", "mn", "ms", "mtext", "msup", "msub", "msubsup",
+    "mfrac", "msqrt", "mroot", "mtable", "mtr", "mtd", "mstyle", "mspace",
+    "semantics", "annotation", "annotation-xml", "mpadded", "mphantom", "menclose",
+    "mglyph", "mmultiscripts", "mprescripts", "none",
+}
 tagpat = re.compile(r"<(/?)([A-Za-z][A-Za-z0-9]*)([^>]*)>")
+
+# 注释与 <code>/<pre> 里是「给人看的例子」，不构成真正的标签容器
+_MASKED = re.compile(r"<!--.*?-->|<(code|pre)\b[^>]*>.*?</\1\s*>", re.S | re.I)
+
+
+def _subtrees(tag: str) -> list:
+    """返回 `<tag ...> ... </tag>` 的区间（支持嵌套）。
+
+    三条刻意的保守设定（2026-10-19 第二轮会审提出后补的）：
+      1. **注释与 `<code>/<pre>` 里的伪标签不算**。否则 `<!-- <svg> -->` 这种没有配对的
+         `</svg>`，会把后面整篇正文都划进「SVG 子树」，正文里的裸 `<path>` 就再也报不出来。
+      2. **未闭合的子树不豁免**（直接丢弃，而不是延伸到文末）。宁可让一个真的忘了闭标签的
+         文档被报出来（它本来就是坏的），也不能让它顺手放过后面的正文。
+      3. 只按名字匹配 `<tag` 与 `</tag>`，属性里带 `>` 的情况会提前截断——代价是可能少豁免
+         一小段，方向仍然是「多报」而不是「漏报」。
+    """
+    masked = [(m.start(), m.end()) for m in _MASKED.finditer(html)]
+
+    def in_masked(pos):
+        return any(a <= pos < b for a, b in masked)
+
+    spans, depth, start = [], 0, None
+    for m in re.finditer(r"<(/?)" + tag + r"\b[^>]*>", html, re.I):
+        if in_masked(m.start()):
+            continue
+        if m.group(1) == "/":
+            if depth > 0:
+                depth -= 1
+                if depth == 0 and start is not None:
+                    spans.append((start, m.end()))
+                    start = None
+        else:
+            if depth == 0:
+                start = m.start()
+            depth += 1
+    return spans        # depth != 0 → 未闭合 → 不豁免
+
+
+_graphic_spans = _subtrees("svg") + _subtrees("math")
+
+
+def _in_graphic(pos: int) -> bool:
+    return any(a <= pos < b for a, b in _graphic_spans)
+
 
 suspicious = []
 for m in re.finditer(r"<", html):
@@ -57,8 +124,13 @@ for m in re.finditer(r"<", html):
     if html[i + 1: i + 2] == "!":       # <!DOCTYPE 与 <!-- 注释，合法
         continue
     mm = tagpat.match(html, i)
-    if not mm or mm.group(2).lower() not in KNOWN:
-        suspicious.append((line, html[i: i + 30].replace("\n", "\\n"), ctx))
+    if mm:
+        name = mm.group(2).lower()
+        if name in KNOWN_HTML:
+            continue
+        if name in KNOWN_GRAPHIC and _in_graphic(i):
+            continue        # 只在 <svg>/<math> 子树内部放行，正文里照报
+    suspicious.append((line, html[i: i + 30].replace("\n", "\\n"), ctx))
 
 print(f"疑似非标签的裸 '<' 共 {len(suspicious)} 处：")
 for line, at, ctx in suspicious:

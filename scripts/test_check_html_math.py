@@ -37,6 +37,44 @@ CASES = [
     ("跨定界符重叠只收一次", r"<p>\(a $b<c$ d\)</p>", ("&lt;", None)),
     ("未闭合 \\( 不跨行吞段", "<p>\\(a<b\n c>d\\)</p>", (None, "&lt;")),
     ("已有实体不重复转义", "<p>$a &lt; b$</p>", ("&amp;lt;", None)),  # 见下方说明
+    # ── 2026-10-19：讲义里内联画电路图（SVG）曾被整张判成裸尖括号，128 处假阳性 ──
+    ("内联 SVG 电路图不误报",
+     '<svg viewBox="0 0 10 10"><g><rect x="0" y="0" width="4" height="4"/>'
+     '<path d="M0 0 L10 10"/><polyline points="0,0 4,4"/><text x="1" y="1">A</text>'
+     '<tspan x="1" y="2">1</tspan></g></svg>',
+     (None, "&lt;")),
+    ("MathML 不误报",
+     "<math><mrow><mi>a</mi><mo>+</mo><mi>b</mi></mrow></math>",
+     (None, "&lt;")),
+    ("SVG 与公式共存时仍能抓裸尖括号",
+     '<svg><path d="M0 0 L1 1"/></svg><p>$a<b$</p>',
+     ("&lt;", None)),
+    # ── 2026-10-19 会审打进来的反例：数学区里恰好出现「合法标签形状」 ──
+    # 这类是扩白名单最危险的漏检面：`<path>` 现在进了 KNOWN，若判断走白名单就会被静默放过。
+    # 实测它们由数学区直接扫描路径抓获，与白名单无关；这四条就是钉住这一点，防以后改坏。
+    ("数学区里出现合法标签形状(path)", "<p>$a<path>b$</p>", ("&lt;", None)),
+    ("数学区里出现合法标签形状(mi)", "<p>$a<mi>x</mi>$</p>", ("&lt;", None)),
+    ("数学区里的标签形状带属性", '<p>$a<g class="x">y</g>$</p>', ("&lt;", None)),
+    ("老路径里的标签形状带属性", '<p>\\(a<rect width="4">b\\)</p>', ("&lt;", None)),
+]
+
+# 只看退出码的用例（不走 --apply 流程）：白名单/子树边界一旦放宽过头，这里会立刻变红。
+# 期望 1 = 必须报出来；0 = 必须不报。
+EXIT_CASES = [
+    ("正常的闭合 svg 子树", '<svg><g><path d="M0 0"/></g></svg>', 0),
+    # 注释里的伪 <svg> 没有配对闭标签；若照单全收，后面整篇都会被划进「SVG 子树」
+    ("注释里的伪 svg 不扩大豁免区", '<!-- <svg> --><p><path d="M0 0"></p>', 1),
+    ("code 里的伪 svg 不扩大豁免区", '<code><svg></code><p><path d="M0 0"></p>', 1),
+    # 未闭合的 svg 不豁免：宁可把坏文档报出来，也不顺手放过后面的正文
+    ("未闭合 svg 之后正文仍被报", '<svg><path d="M0 0"/><p><mi x></p>', 1),
+    ("正文里的绘图标签", '<p>正文 <path d="M0 0"> 不在 svg 里</p>', 1),
+    # 属性里带 `>` 会提前截断，但方向必须是「少豁免」而不是「多豁免」
+    ("属性里带 > 的 svg 仍正确豁免", '<svg data-a="x>y"><path d="M0 0"/></svg>', 0),
+    ("错配嵌套后的正文标签仍被报", '<svg><g></svg><path d="M0 0">', 1),
+    # 能**单独**隔离出「注释/code 伪标签不配对」这条守卫的用例（2026-10-19 第四轮会审给出的构造）：
+    # 若不许 code 里的 <svg> 参与配对，它会与后面那个孤立的 </svg> 配成一个假子树，
+    # 把中间真正的裸 <path> 划进豁免区 —— 实测关掉这条守卫后，本行从 exit=1 变成 exit=0（漏报）。
+    ("code 里的伪 svg 不能与真实闭标签配对", '<code><svg></code><p><path d="M0 0"/></svg>', 1),
 ]
 
 
@@ -70,7 +108,16 @@ def main():
         if not ok:
             fails += 1
             print("  log: " + log.strip().replace("\n", " | ")[:300])
-    print("%d/%d" % (len(CASES) - fails, len(CASES)))
+    for name, html_text, want_code in EXIT_CASES:
+        code, out, log = run(html_text, apply=False)
+        ok = code == want_code
+        print(("PASS " if ok else "FAIL ") + name
+              + ("" if ok else "  → exit=%d，期望 %d" % (code, want_code)))
+        if not ok:
+            fails += 1
+            print("  log: " + log.strip().replace("\n", " | ")[:300])
+    total = len(CASES) + len(EXIT_CASES)
+    print("%d/%d" % (total - fails, total))
     return 1 if fails else 0
 
 

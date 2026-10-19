@@ -187,12 +187,12 @@ HTML 是"源"，PDF 是方便打印和带走的副本；完整模式下两者版
 
 | 文件 | 内容 |
 |---|---|
-| SKILL.md | 入口：输入处理（有题 / 只有课件两种模式）、三件套、工作流、11 条硬规则、换科目时的四件事 |
+| SKILL.md | 入口：输入处理（有题 / 只有课件两种模式）、三件套、工作流、12 条硬规则、换科目时的四件事 |
 | references/conventions.md | 三件套的格式规格、排版与导出约束、目录与命名、交付前自查 |
 | references/export.md | **讲义 HTML → PDF 的导出与核对**：权限前提（§0）、浏览器打印（首选）、pandoc+LaTeX 备用、目视核对命令、写 HTML 时的坑 |
 | references/wording-rules.md | 措辞禁令、新名词与新物理量的解释要求 |
 | references/figure-rules.md | 加图判据（通用内核 + 学科清单现场生成） |
-| scripts/check_html_math.py | 门禁脚本：检查/修复讲义 HTML 数学区裸的 `<` `>` `&`（返回码 0 才算过）。认四种定界符：`\(..\)`、`\[..\]`、`$..$`、`$$..$$` |
+| scripts/check_html_math.py | 门禁脚本：检查/修复讲义 HTML 数学区裸的 `<` `>` `&`（返回码 0 才算过）。认四种定界符：`\(..\)`、`\[..\]`、`$..$`、`$$..$$`；白名单含 **SVG 与 MathML 元素**，讲义里内联画的电路图不会被误报 |
 | scripts/test_check_html_math.py | 上者的回归测试（10 例，含价格、转义美元、未闭合 `$$` 不误判）：`python scripts/test_check_html_math.py` |
 | scripts/make-release.mjs | 发版用：给「有 tag 但没有 Release」的版本自动补建 GitHub Release（本机没装 `gh`） |
 
