@@ -32,7 +32,9 @@
    out/ 一个字节都不碰。
 2. 在跑检查**之前**先记下每个候选文件的 md5 —— 检查是一个子进程（可能几十秒），
    复制又是另一个时刻，这中间你完全可能又跑了一次修改脚本；只要 md5 变了就中止，
-   避免"检查的是 A、发布的是 B"。
+   避免"检查的是 A、发布的是 B"。检查器还会把它**实际读到**的内容指纹打在最后
+   一行 `MD5 xxxxxxxxxxxx`，这里拿它跟预记的指纹比：不一致就说明"检查的字节"和
+   "要发布的字节"不是同一份（例如检查期间文件被临时改过又改回来），直接中止。
 3. 全部复制进 `out/.staging-<时间戳>/` 并 fsync，确认每一个都完整落地。
 4. 把即将被覆盖的旧文件复制到 `out/.backup/<时间戳>/`。
 5. 逐个 `os.replace(staged → 目标)`；任何一个失败，就把已替换的用备份换回去。
@@ -40,7 +42,9 @@
 """
 import argparse
 import hashlib
+import io
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -101,9 +105,24 @@ def main():
             cmd += ["--pdf", a.pdf]
         if a.manifest:
             cmd += ["--manifest", a.manifest]
-        r = subprocess.run(cmd)
+        r = subprocess.run(cmd, capture_output=True, text=True,
+                           encoding="utf-8", errors="replace")
+        sys.stdout.write(r.stdout or "")
+        sys.stderr.write(r.stderr or "")
         if r.returncode != 0:
             print("\n❌ 完整性检查未通过 → 不发布，%s 保持原样。" % a.out)
+            return 1
+        # 检查器读到的字节 == 我们刚记指纹的字节？它会把实际读到内容的 MD5 打在最后一行。
+        # 没有这一行就无法知道"检查的是 A、要发布的是 B"，宁可中止。
+        m = re.search(r"^MD5 ([0-9a-f]{12})\s*$", r.stdout or "", re.M)
+        if not m:
+            print("\n❌ 检查器没有报告内容指纹（MD5 行），无法确认检查对象与发布对象一致 → 不发布。")
+            return 1
+        joined = "".join(io.open(p, encoding="utf-8").read() for p in a.html)
+        want = hashlib.md5(joined.encode("utf-8")).hexdigest()[:12]
+        if m.group(1) != want:
+            print("\n❌ 检查器实际读到的内容（%s）与当前文件（%s）不是同一份 → 不发布。"
+                  "\n   检查期间文件被改动过，重跑一次。" % (m.group(1), want))
             return 1
     else:
         print("⚠️ 已跳过完整性检查（--skip-verify）")

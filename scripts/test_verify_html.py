@@ -7,7 +7,8 @@
 跑法：
     python scripts/test_verify_html.py
 
-十三例（前七例是"整段消失/整篇缩水"这一层，后六例是针对独立评审指出的漏检面）：
+二十例（前七例是"整段消失/整篇缩水"这一层，之后是针对独立评审指出的漏检面，
+最后三例验"有意改动怎么放行"——放行必须留声明，不是悄悄跳过）：
   1  记录基线成功
   2  内容不动 → 通过
   3  删掉一整节（连标题）→ 拦
@@ -21,6 +22,14 @@
   11 全篇截断到 60% → 拦
   12 当前状态本身有重复时，拒绝记基线
   13 --force 可以强记
+  —— 下面是独立评审打回后补的（每条都是一个"当时的实现会放过去"的构造）——
+  14 **删掉 60%、再补回一段**（净额刚好低于旧阈值 120，但消失比例 60%）→ 拦
+  15 **反复追加"改写过的"补充段**（指纹每次都变，段落重复抓不到）→ 拦（单节暴涨）
+  16 **整节复制、把 id 改了**（dup_sec 抓不到）→ 拦（节标题重复）
+  17 **`@media print` 里 display:none**（HTML 字数不变、PDF 缺一块）→ 拦
+  18 **改节 id 并在 CHANGES.md 记 `旧 → 新`** → 放行，且输出"已声明的改名"
+  19 **整节重写 + `<!-- verify:rewrite 节id -->`** → 放行，且输出"本次声明的整节重写"
+  20 通过时最后一行必须打 `MD5 xxxxxxxxxxxx`（promote.py 靠它比对）
 """
 import io
 import os
@@ -122,7 +131,7 @@ def main():
     short = f2[:int(len(f2) * 0.45)]
     write(html, good.replace("<p>%s</p>" % f2, "<p>%s</p>" % short, 1))
     rc, out = run(["--html", html, "--manifest", man])
-    check("4 保留标题删正文被拦", rc == 1 and "正文被吞了一截" in out, out)
+    check("4 保留标题删正文被拦", rc == 1 and "段落被换掉" in out, out)
 
     # 5 重复插入（定义 0-2 出现两次）
     dup = good.replace('<h3 id="s03">0.3 符号</h3>',
@@ -180,12 +189,69 @@ def main():
     rc, out = run(["--html", html, "--manifest", man + ".3", "--record", "--force"])
     check("13 --force 可强记", rc == 0 and os.path.exists(man + ".3"), out)
 
+    # 14 删掉 60%、再补回一段（净额 116 < 旧阈值 120，但消失比例 60%）
+    kept = f2[:int(len(f2) * 0.40)]
+    patch = ("补回来的一段新文字，用来把净额压到旧阈值以下。" * 5)
+    mixed = "<p>%s</p><p>%s</p>" % (kept, patch)
+    write(html, good.replace("<p>%s</p>" % f2, mixed, 1))
+    rc, out = run(["--html", html, "--manifest", man])
+    check("14 删六成再补回被拦", rc == 1 and "段落被换掉" in out, out)
+
+    # 15 反复追加"改写过的"补充段：每段指纹都新，只有单节暴涨能抓
+    grow = ("这是后来又补的一段，措辞每次重跑都不一样，所以段落指纹认不出它是重复。" * 8)
+    grown = good.replace('<p><a href="#s03">回到 0.3</a></p>',
+                         "<p>%s</p><p><a href=\"#s03\">回到 0.3</a></p>" % grow)
+    write(html, grown)
+    rc, out = run(["--html", html, "--manifest", man])
+    check("15 改写累积被拦（单节暴涨）", rc == 1 and "1.6 倍以上" in out, out)
+
+    # 16 整节复制、把 id 改了（dup_sec 抓不到）
+    i, j = block(good, "s02", "s03")
+    copied = good[i:j].replace('id="s02"', 'id="s02b"', 1)
+    k = good.index('id="s03"')
+    k = good.rindex("<h", 0, k)
+    write(html, good[:k] + copied + good[k:])
+    rc, out = run(["--html", html, "--manifest", man])
+    check("16 复制改 id 被拦（标题重复）", rc == 1 and "节标题重复" in out, out)
+
+    # 17 @media print 里藏内容
+    hidden = good.replace("</body>",
+                          "<style>@media print{#s02{display:none}}</style></body>")
+    write(html, hidden)
+    rc, out = run(["--html", html, "--manifest", man])
+    check("17 打印样式藏内容被拦", rc == 1 and "打印样式里藏" in out, out)
+
+    # 18 改节 id + 在 CHANGES.md 记 `旧 → 新` → 放行
+    renamed = (good.replace('id="s03"', 'id="s03x"', 1)
+                   .replace('href="#s03"', 'href="#s03x"'))
+    chg = os.path.join(tmp, "data")
+    os.makedirs(chg, exist_ok=True)
+    write(os.path.join(chg, "CHANGES.md"),
+          "| 稳定 ID | 说明 |\n|---|---|\n| `s03` → `s03x` | 换了更清楚的 id |\n")
+    write(html, renamed)
+    rc, out = run(["--html", html, "--manifest", man])
+    check("18 已声明的改名放行", rc == 0 and "已声明的改名" in out, out)
+
+    # 19 整节重写（更短）+ 显式声明 → 放行
+    shorter = ("重写后的这段话更简练，但仍然交代了成像与符号。" * 10)
+    rew = good.replace("<p>%s</p>" % f2, "<p>%s</p>" % shorter, 1)
+    rew = rew.replace('<h3 id="s02">0.2 成像</h3>',
+                      '<h3 id="s02">0.2 成像</h3>\n<!-- verify:rewrite s02 -->', 1)
+    write(html, rew)
+    rc, out = run(["--html", html, "--manifest", man])
+    check("19 声明的整节重写放行", rc == 0 and "本次声明的整节重写" in out, out)
+
+    # 20 通过时打 MD5 行（promote.py 拿它比对"检查的"和"要发布的"是不是同一份）
+    write(html, good)
+    rc, out = run(["--html", html, "--manifest", man])
+    check("20 输出 MD5 指纹", rc == 0 and "MD5 " in out, out)
+
     shutil.rmtree(tmp, ignore_errors=True)
     print()
     if fails:
         print("❌ %d 例未通过：%s" % (len(fails), fails))
         return 1
-    print("✅ 十三例全部通过")
+    print("✅ 二十例全部通过")
     return 0
 
 
